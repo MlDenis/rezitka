@@ -78,7 +78,6 @@ public class Program
     {
         try
         {
-            //var defaultConnectionString = "Server=158.160.16.141;Port=5432;Database=IsaTestDb12345;Username=postgres;Password=Qwerty123; Include Error Detail = true"; // Replace with your PostgreSQL connection string
             var defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;"; // Replace with your PostgreSQL connection string
 
             var checkerService = new DatabaseCheckerService();
