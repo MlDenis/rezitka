@@ -6,6 +6,8 @@ using Telegram.Bot.Args;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using System.Threading.Tasks;
+
 
 public class DatabaseCheckerService
 {
@@ -66,13 +68,26 @@ public class DatabaseCheckerService
             Console.WriteLine("------------------------------");
         }
     }
+    
 }
 
 public class Program
 {
     private static Timer _timer;
 
-    private static Telegram.Bot.TelegramBotClient _client;
+    //private static Telegram.Bot.TelegramBotClient _client;
+
+    private static TelegramBotClient client;
+
+    private async void BotOnMessageReceived(object sender, MessageEventArgs messageEventArgs)
+    {
+        var message = messageEventArgs.Message;
+        if (message?.Type == MessageType.TextMessage)
+        {
+            await client.SendTextMessageAsync(message.Chat.Id, "Hello");
+        }
+    }
+
     public static async Task Main()
     {
         try
@@ -82,8 +97,15 @@ public class Program
             var checkerService = new DatabaseCheckerService();
             _timer = new Timer(_ => checkerService.CheckDatabase(defaultConnectionString), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
 
+            client = new TelegramBotClient("6972815303:AAFr4eA9y3T8DNHK3fnD17zlEll1AW0HQqw");
+            client.OnMessage += BotOnMessageReceived;
+            client.OnMessageEdited += BotOnMessageReceived;
+            client.StartReceiving();
+
             Console.WriteLine("Press any key to stop the checks...");
             Console.In.ReadLineAsync().GetAwaiter().GetResult();
+
+            client.StopReceiving();
 
             _timer.Dispose();
         }
@@ -94,4 +116,5 @@ public class Program
         }
 
     }
+
 }
