@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PostgreSqlMonitoringBot": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
