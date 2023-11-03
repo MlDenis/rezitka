@@ -1,18 +1,9 @@
-﻿using Newtonsoft.Json.Linq;
-using Npgsql;
-using Quartz.Impl;
-using Quartz;
+﻿using Npgsql;
 using System.Diagnostics;
 using Telegram.Bot;
-using Telegram.Bot.Args;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Polling;
-using static Hangfire.Storage.JobStorageFeatures;
-using System.Text.Json.Serialization;
 using System.Text.Json;
-
+using Telegram.Bot.Types;
 
 public class DatabaseCheckerService
 {
@@ -123,34 +114,30 @@ public class Program
 
             Console.WriteLine("------------------------------");
         }
+        return metrics;
     }
-}
-
-public class Program
-{
-    private static Timer _timer;
-
-    private static Telegram.Bot.TelegramBotClient _client;
-    public static async Task Main()
+    public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
-        try
+        // Некоторые действия
+        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
+        if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
         {
-            var defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;"; // Replace with your PostgreSQL connection string
-
-            var checkerService = new DatabaseCheckerService();
-            _timer = new Timer(_ => checkerService.CheckDatabase(defaultConnectionString), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
-
-            Console.WriteLine("Press any key to stop the checks...");
-            Console.In.ReadLineAsync().GetAwaiter().GetResult();
-
-            _timer.Dispose();
+            var message = update.Message;
+            if (message.Text.ToLower() == "/start")
+            {
+                await botClient.SendTextMessageAsync(message.Chat, "Добро пожаловать на борт, добрый путник!");
+                return;
+            }
+            if (message.Text.ToLower() == "/metrics")
+            {
+                await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
+            }
+            await botClient.SendTextMessageAsync(message.Chat, "Привет-привет!!");
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-            throw;
-        }
-
     }
-
+    public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    {
+        // Некоторые действия
+        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(exception));
+    }
 }
