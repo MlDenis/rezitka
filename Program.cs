@@ -13,6 +13,7 @@ using static Hangfire.Storage.JobStorageFeatures;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 
+
 public class DatabaseCheckerService
 {
     public string _connectionString;
@@ -109,41 +110,47 @@ public class Program
                 metrics.totalStorageSize = totalSize.ToString();
             }
 
-            //Process process1 = new Process();
-            //process1.StartInfo.FileName = "top";
-            //process1.StartInfo.Arguments = "-bn1";
-            //process1.StartInfo.RedirectStandardOutput = true;
-            //process1.StartInfo.UseShellExecute = false;
-            //process1.Start();
-            //string output1 = process1.StandardOutput.ReadToEnd();
-            //process1.WaitForExit();
-            //float currentCpuUsage = float.Parse(output1.Split('\n')[2].Split()[1]);
-            metrics.currentCpuUsage = new Random().Next(0, 99).ToString() + "%";
+            Process process1 = new Process();
+            process1.StartInfo.FileName = "top";
+            process1.StartInfo.Arguments = "-bn1";
+            process1.StartInfo.RedirectStandardOutput = true;
+            process1.StartInfo.UseShellExecute = false;
+            process1.Start();
+            string output1 = process1.StandardOutput.ReadToEnd();
+            process1.WaitForExit();
+            float currentCpuUsage = float.Parse(output1.Split('\n')[2].Split()[1]);
+            Console.WriteLine("Current CPU Usage: " + currentCpuUsage);
+
+            Console.WriteLine("------------------------------");
         }
-        return metrics;
     }
-    public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+}
+
+public class Program
+{
+    private static Timer _timer;
+
+    private static Telegram.Bot.TelegramBotClient _client;
+    public static async Task Main()
     {
-        // Некоторые действия
-        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
-        if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
+        try
         {
-            var message = update.Message;
-            if (message.Text.ToLower() == "/start")
-            {
-                await botClient.SendTextMessageAsync(message.Chat, "Добро пожаловать на борт, добрый путник!");
-                return;
-            }
-            if (message.Text.ToLower() == "/metrics")
-            {
-                await botClient.SendTextMessageAsync(message.Chat,JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
-            }
-            await botClient.SendTextMessageAsync(message.Chat, "Привет-привет!!");
+            var defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;"; // Replace with your PostgreSQL connection string
+
+            var checkerService = new DatabaseCheckerService();
+            _timer = new Timer(_ => checkerService.CheckDatabase(defaultConnectionString), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
+
+            Console.WriteLine("Press any key to stop the checks...");
+            Console.In.ReadLineAsync().GetAwaiter().GetResult();
+
+            _timer.Dispose();
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            throw;
+        }
+
     }
-    public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
-    {
-        // Некоторые действия
-        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(exception));
-    }
+
 }
