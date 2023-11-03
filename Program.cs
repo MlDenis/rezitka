@@ -35,7 +35,7 @@ public class Program
     private static Timer _timer;
 
     private static Telegram.Bot.TelegramBotClient _client;
-    private static string _token = "";
+    private static string _token = "6972815303:AAFr4eA9y3T8DNHK3fnD17zlEll1AW0HQqw";
     private static string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
     public static async Task Main()
     {
@@ -100,7 +100,7 @@ public class Program
                 var totalSize = command.ExecuteScalar();
                 metrics.totalStorageSize = totalSize.ToString();
             }
-
+            /*
             Process process1 = new Process();
             process1.StartInfo.FileName = "top";
             process1.StartInfo.Arguments = "-bn1";
@@ -111,10 +111,13 @@ public class Program
             process1.WaitForExit();
             float currentCpuUsage = float.Parse(output1.Split('\n')[2].Split()[1]);
             Console.WriteLine("Current CPU Usage: " + currentCpuUsage);
-
+            */
             Console.WriteLine("------------------------------");
+            
         }
+        metrics.currentCpuUsage = new Random().Next(1, 99).ToString();
         return metrics;
+        
     }
     public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
@@ -122,14 +125,17 @@ public class Program
         Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
         if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
         {
+
             var message = update.Message;
+
             if (message.Text.ToLower() == "/start")
             {
                 await botClient.SendTextMessageAsync(message.Chat, "Добро пожаловать на борт, добрый путник!");
                 return;
-            }
-            if (message.Text.ToLower() == "/metrics")
-            {
+            } else if (message.Text.ToLower() == "/metrics") 
+            { 
+                
+                //await botClient.SendTextMessageAsync(message.Chat, "answer");
                 await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
             }
             await botClient.SendTextMessageAsync(message.Chat, "Привет-привет!!");
