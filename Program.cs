@@ -73,7 +73,6 @@ public class Program
     private static Timer _timer;
 
     private static Telegram.Bot.TelegramBotClient _client;
-    //private static string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
     public static async Task Main()
     {
         try
