@@ -10,86 +10,61 @@ using Microsoft.Extensions.DependencyInjection;
 using Hangfire;
 using Quartz.Impl;
 using Quartz;
+using Microsoft.EntityFrameworkCore;
 
-string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
-string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
-
-List<string> _connStrings = new List<string>()
+internal class Program
 {
-    "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
-    "Server=smoldb;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;"
-};
+    public static string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
+    public static string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
 
-IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices(async (context, services) =>
+    public static List<string> _connStrings = new List<string>()
     {
-        var telegramBot = new TelegramBotClient(_token);
-        var cts = new CancellationTokenSource();
-        var cancellationToken = cts.Token;
-        var receiverOptions = new ReceiverOptions
-        {
-            AllowedUpdates = { },
-        };
-        telegramBot.StartReceiving(
-            HandleUpdateAsync,
-            HandleErrorAsync,
-            receiverOptions,
-            cancellationToken
-        );
-        services.AddSingleton(telegramBot);
+        "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
+        "Server=smoldb;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
+    };
 
-        ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
-        IScheduler scheduler = await schedulerFactory.GetScheduler();
-
-        await scheduler.Start();
-
-        foreach (var connString in _connStrings)
-        {
-            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(connString);
-            var dbName = builder.Host;
-
-            IJobDetail job = JobBuilder.Create<CheckDbJob>()
-                .WithIdentity(dbName + "Job", "metrics")
-                .UsingJobData("connString", connString)
-                .Build();
-
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity(dbName + "Trigger", "metrics")
-                .StartNow()
-                .WithSimpleSchedule(x => x
-                    .WithIntervalInSeconds(15)
-                    .RepeatForever())
-                .Build();
-
-            await scheduler.ScheduleJob(job, trigger);
-        }
-    })
-    .Build();
-
-    await host.RunAsync();
-
-    async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    private static async Task Main(string[] args)
     {
-        // Некоторые действия
-        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
-        if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
-        {
-            var message = update.Message;
-
-            if (message.Text.ToLower() == "/start")
+        IHost host = Host.CreateDefaultBuilder(args)
+            .ConfigureServices(async (context, services) =>
             {
-                await botClient.SendTextMessageAsync(message.Chat, "Сервис мониторинга Rezetka готов к работе");
-                return;
-            }
-            else if (message.Text.ToLower() == "/metrics")
-            {
-                await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(DbExtensions.GetMetrics(_defaultConnectionString)));
-            }
-        }
-    }
-    async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
-    {
-        // Некоторые действия
-        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(exception));
-    }
+                services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_defaultConnectionString));
 
+                var telegramBot = new TelegramBot(_token).StartAsync();
+                services.AddSingleton(telegramBot);
+
+                ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
+                IScheduler scheduler = await schedulerFactory.GetScheduler();
+
+                await scheduler.Start();
+
+                var provider = services.BuildServiceProvider();
+                var dbContext = provider.GetService<AppDbContext>();
+                await dbContext.Database.MigrateAsync();
+                scheduler.Context.Put("dbContext", dbContext);
+                foreach (var connString in _connStrings)
+                {
+                    NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(connString);
+                    var hostName = builder.Host;
+
+                    IJobDetail job = JobBuilder.Create<CheckDbJob>()
+                        .WithIdentity(hostName + "Job", "metrics")
+                        .UsingJobData("connString", connString)
+                        .Build();
+
+                    ITrigger trigger = TriggerBuilder.Create()
+                        .WithIdentity(hostName + "Trigger", "metrics")
+                        .StartNow()
+                        .WithSimpleSchedule(x => x
+                            .WithIntervalInSeconds(15)
+                            .RepeatForever())
+                        .Build();
+
+                    await scheduler.ScheduleJob(job, trigger);
+                }
+            })
+            .Build();
+
+        await host.RunAsync();
+    }
+}

@@ -17,6 +17,10 @@ services:
     restart: always
     ports:
      - "5432:5432"
+    environment:
+     - POSTGRES_DB=TestDb
+     - POSTGRES_USER=postgres
+     - POSTGRES_PASSWORD=Qwerty123
 
   smoldb:
     container_name: smoldb
@@ -24,7 +28,6 @@ services:
     restart: always
     ports:
      - "5433:5432"
-
     environment:
      - POSTGRES_DB=TestDb
      - POSTGRES_USER=postgres

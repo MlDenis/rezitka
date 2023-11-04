@@ -8,6 +8,8 @@ namespace PostgreSqlMonitoringBot
 {
     public class Metrica
     {
+        public Guid id { get; set; }
+        public DateTime dt { get; set; } = DateTime.UtcNow;
         public TimeSpan longestTransactionDuration { get; set; }
         public string activeSessionsCount { get; set; }
         public string sessionsWithLWLockCount { get; set; }
