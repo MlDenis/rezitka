@@ -4,157 +4,92 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using System.Text.Json;
 using Telegram.Bot.Types;
+using PostgreSqlMonitoringBot;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Hangfire;
+using Quartz.Impl;
+using Quartz;
 
-public class DatabaseCheckerService
+string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
+string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
+
+List<string> _connStrings = new List<string>()
 {
-    public string _connectionString;
-    public DatabaseCheckerService(string connectionString)
+    "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
+    "Server=smoldb;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;"
+};
+
+IHost host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices(async (context, services) =>
     {
-        _connectionString = connectionString;
-    }
-
-    public async Task CheckDatabase()
-    {
-        var metrics = Program.GetMetrics(_connectionString);
-        Console.WriteLine(JsonSerializer.Serialize(metrics));
-    }
-}
-
-public class Metrics
-{
-    public TimeSpan longestTransactionDuration { get; set; }
-    public string activeSessionsCount { get; set; }
-    public string sessionsWithLWLockCount { get; set; }
-    public string totalStorageSize { get; set; }
-    public string currentCpuUsage { get; set; }
-
-}
-
-public class Program
-{
-    private static Timer _timer;
-
-    private static Telegram.Bot.TelegramBotClient _client;
-    private static string _token = "6305773429:AAF8TOiqdaCsFE5agD6a01_G25JC4KInIsk";
-    private static string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
-    public static async Task Main()
-    {
-        try
+        var telegramBot = new TelegramBotClient(_token);
+        var cts = new CancellationTokenSource();
+        var cancellationToken = cts.Token;
+        var receiverOptions = new ReceiverOptions
         {
-            var checkerService = new DatabaseCheckerService(_defaultConnectionString);
-            _timer = new Timer(_ => checkerService.CheckDatabase(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
+            AllowedUpdates = { },
+        };
+        telegramBot.StartReceiving(
+            HandleUpdateAsync,
+            HandleErrorAsync,
+            receiverOptions,
+            cancellationToken
+        );
+        services.AddSingleton(telegramBot);
 
-            Console.WriteLine("Press any key to stop the checks...");
+        ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
+        IScheduler scheduler = await schedulerFactory.GetScheduler();
 
-            _client = new TelegramBotClient(_token);
-            Console.WriteLine("Запущен бот " + _client.GetMeAsync().Result.FirstName);
-            var cts = new CancellationTokenSource();
-            var cancellationToken = cts.Token;
-            var receiverOptions = new ReceiverOptions
-            {
-                AllowedUpdates = { }, // receive all update types
-            };
-            _client.StartReceiving(
-                HandleUpdateAsync,
-                HandleErrorAsync,
-                receiverOptions,
-                cancellationToken
-            );
-            Console.In.ReadLineAsync().GetAwaiter().GetResult();
-            _timer.Dispose();
-        }
-        catch (Exception ex)
+        await scheduler.Start();
+
+        foreach (var connString in _connStrings)
         {
-            Console.WriteLine(ex.Message);
-            throw;
+            NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(connString);
+            var dbName = builder.Host;
+
+            IJobDetail job = JobBuilder.Create<CheckDbJob>()
+                .WithIdentity(dbName + "Job", "metrics")
+                .UsingJobData("connString", connString)
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(dbName + "Trigger", "metrics")
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInSeconds(15)
+                    .RepeatForever())
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
         }
+    })
+    .Build();
 
-    }
-    public static Metrics GetMetrics(string _connectionString)
-    {
-        var metrics = new Metrics();
-        using (var connection = new NpgsqlConnection(_connectionString))
-        {
-            connection.Open();
+    await host.RunAsync();
 
-            using (var command = new NpgsqlCommand("SELECT max(now() - xact_start) FROM pg_stat_activity", connection))
-            {
-                var longestTransactionDuration = (TimeSpan)command.ExecuteScalar();
-                metrics.longestTransactionDuration = longestTransactionDuration;
-            }
-
-            using (var command = new NpgsqlCommand("SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'", connection))
-            {
-                var activeSessionsCount = command.ExecuteScalar();
-                metrics.activeSessionsCount = activeSessionsCount.ToString();
-            }
-
-            using (var command = new NpgsqlCommand("SELECT COUNT(*) FROM pg_stat_activity WHERE wait_event = 'LWLock'", connection))
-            {
-                var sessionsWithLWLockCount = command.ExecuteScalar();
-                metrics.sessionsWithLWLockCount = sessionsWithLWLockCount.ToString();
-            }
-
-            using (var command = new NpgsqlCommand("SELECT pg_size_pretty(pg_total_relation_size('pg_stat_activity')) AS total_size", connection))
-            {
-                var totalSize = command.ExecuteScalar();
-                metrics.totalStorageSize = totalSize.ToString();
-            }
-            /*
-            Process process1 = new Process();
-            process1.StartInfo.FileName = "top";
-            process1.StartInfo.Arguments = "-bn1";
-            process1.StartInfo.RedirectStandardOutput = true;
-            process1.StartInfo.UseShellExecute = false;
-            process1.Start();
-            string output1 = process1.StandardOutput.ReadToEnd();
-            process1.WaitForExit();
-            float currentCpuUsage = float.Parse(output1.Split('\n')[2].Split()[1]);
-            Console.WriteLine("Current CPU Usage: " + currentCpuUsage);
-            */
-            Console.WriteLine("------------------------------");
-            
-        }
-        metrics.currentCpuUsage = new Random().Next(1, 99).ToString();
-        return metrics;
-        
-    }
-    public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         // Некоторые действия
         Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
         if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
         {
-
             var message = update.Message;
 
             if (message.Text.ToLower() == "/start")
             {
                 await botClient.SendTextMessageAsync(message.Chat, "Сервис мониторинга Rezetka готов к работе");
                 return;
-            } else if (message.Text.ToLower() == "/metrics") 
-            { 
-                
-              try
-                {
-                    await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
-                }
-                catch (Npgsql.NpgsqlException ex)
-                {
-                    Console.WriteLine(ex);
-                    botClient.SendTextMessageAsync(message.Chat, $"КРИТИЧЕСКАЯ ОШИБКА - 0004 - БАЗА ДАННЫХ НЕДОСТУПНА: db");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                    botClient.SendTextMessageAsync(message.Chat, $"КРИТИЧЕСКАЯ ОШИБКА - 0005 - СЕРВИС НЕДОСТУПЕН: db");
-                }
+            }
+            else if (message.Text.ToLower() == "/metrics")
+            {
+                await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(DbExtensions.GetMetrics(_defaultConnectionString)));
             }
         }
     }
-    public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
     {
         // Некоторые действия
         Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(exception));
     }
-}
+

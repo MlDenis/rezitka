@@ -18,6 +18,13 @@ services:
     ports:
      - "5432:5432"
 
+  smoldb:
+    container_name: smoldb
+    image: postgres:latest
+    restart: always
+    ports:
+     - "5433:5432"
+
     environment:
      - POSTGRES_DB=TestDb
      - POSTGRES_USER=postgres
