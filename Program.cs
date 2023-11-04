@@ -1,4 +1,4 @@
-﻿using Npgsql;
+using Npgsql;
 using System.Diagnostics;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
@@ -35,7 +35,7 @@ public class Program
     private static Timer _timer;
 
     private static Telegram.Bot.TelegramBotClient _client;
-    private static string _token = "6972815303:AAFr4eA9y3T8DNHK3fnD17zlEll1AW0HQqw";
+    private static string _token = "6305773429:AAF8TOiqdaCsFE5agD6a01_G25JC4KInIsk";
     private static string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
     public static async Task Main()
     {
@@ -130,15 +130,26 @@ public class Program
 
             if (message.Text.ToLower() == "/start")
             {
-                await botClient.SendTextMessageAsync(message.Chat, "Добро пожаловать на борт, добрый путник!");
+                await botClient.SendTextMessageAsync(message.Chat, "Сервис мониторинга Rezetka готов к работе");
                 return;
             } else if (message.Text.ToLower() == "/metrics") 
             { 
                 
-                //await botClient.SendTextMessageAsync(message.Chat, "answer");
-                await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
+              try
+                {
+                    await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(GetMetrics(_defaultConnectionString)));
+                }
+                catch (Npgsql.NpgsqlException ex)
+                {
+                    Console.WriteLine(ex);
+                    botClient.SendTextMessageAsync(message.Chat, $"КРИТИЧЕСКАЯ ОШИБКА - 0004 - БАЗА ДАННЫХ НЕДОСТУПНА: db");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    botClient.SendTextMessageAsync(message.Chat, $"КРИТИЧЕСКАЯ ОШИБКА - 0005 - СЕРВИС НЕДОСТУПЕН: db");
+                }
             }
-            await botClient.SendTextMessageAsync(message.Chat, "Привет-привет!!");
         }
     }
     public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
