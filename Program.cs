@@ -12,7 +12,7 @@ using Quartz.Impl;
 using Quartz;
 
 string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
-string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
+string _token = "6249848344:AAHYJmyBe-rjv0T85pNEuQP7jPg9m6-IYu0";
 
 List<string> _connStrings = new List<string>()
 {
