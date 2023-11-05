@@ -33,7 +33,7 @@ namespace PostgreSqlMonitoringBot
                 var uniqueUsers = users.Distinct();
                 foreach (var user in uniqueUsers)
                 {
-                    await bot.SendTextMessageAsync(user.ChatId,host + " " + result.Message);
+                    await bot.SendTextMessageAsync(user.ChatId,host + " " + result.Message + ",\nИсправьте строку покдлючения и перезапустите приложение");
                 }
             }
 
