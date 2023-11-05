@@ -12,7 +12,6 @@ using Quartz.Impl;
 using Quartz;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
-using PostgreSqlMonitoringBot.Queries;
 using MediatR;
 
 internal class Program
@@ -31,7 +30,6 @@ internal class Program
         IHost host = Host.CreateDefaultBuilder(args)
             .ConfigureServices(async (context, services) =>
             {
-                services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
                 services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_defaultConnectionString));
 
                 ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
@@ -66,21 +64,6 @@ internal class Program
                         .Build();
 
                     await scheduler.ScheduleJob(job, trigger);
-
-                    //IJobDetail jobChecker = JobBuilder.Create<DatabaseCheckerServiceJob>()
-                    //    .WithIdentity(hostName + "CheckerJob", "CheckerMetrics")
-                    //    .UsingJobData("connString", connString)
-                    //    .Build();
-
-                    //ITrigger triggerChecker = TriggerBuilder.Create()
-                    //    .WithIdentity(hostName + "CheckerTrigger", "CheckerMetrics")
-                    //    .StartNow()
-                    //    .WithSimpleSchedule(x => x
-                    //        .WithIntervalInSeconds(5)
-                    //        .RepeatForever())
-                    //    .Build();
-
-                    //await scheduler.ScheduleJob(job, trigger);
                 }
             })
             .Build();

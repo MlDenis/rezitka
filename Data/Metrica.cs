@@ -15,5 +15,7 @@ namespace PostgreSqlMonitoringBot
         public string sessionsWithLWLockCount { get; set; }
         public string totalStorageSize { get; set; }
         public string currentCpuUsage { get; set; }
+        public bool LowSize { get; set; }
+        public bool OffSize { get; set; }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using PostgreSqlMonitoringBot.Queries;
 using Quartz;
 using System;
 using System.Collections.Generic;

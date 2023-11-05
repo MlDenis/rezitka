@@ -64,6 +64,15 @@ namespace PostgreSqlMonitoringBot
                     var lastMetrics = _dbContext.Metrics.LastOrDefaultAsync();
                     await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(lastMetrics));
                 }
+                else if (message.Text.ToLower() == "/currentConnections")
+                {
+                    var connections = "";
+                    foreach (var connString in Program._connStrings)
+                    {
+                        connections += $"{connString},\n";
+                    }
+                    await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(connections));
+                }
                 else
                 {
                     await botClient.SendTextMessageAsync(message.Chat, "Я пока не придумал, что на это ответить ):");

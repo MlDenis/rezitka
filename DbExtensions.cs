@@ -44,6 +44,16 @@ namespace PostgreSqlMonitoringBot
                 var totalSize = command.ExecuteScalar();
                 metrics.totalStorageSize = totalSize.ToString();
             }
+            using (var command = new NpgsqlCommand("WITH db_info AS ( SELECT pg_database_size(current_database()) AS total_size, pg_database_size(current_database()) - (SELECT SUM(pg_total_relation_size(quote_ident(tablename))::bigint) FROM pg_tables WHERE schemaname = 'public') AS free_space ) SELECT CASE WHEN free_space / total_size <= 0.25 THEN true ELSE false END AS is_database_full FROM db_info;", connection))
+            {
+                var LowSize = (bool)command.ExecuteScalar();
+                metrics.LowSize = LowSize;
+            }
+            using (var command = new NpgsqlCommand("SELECT CASE WHEN (SELECT pg_database_size(current_database()) - (SELECT SUM(pg_total_relation_size(quote_ident(tablename))::bigint) FROM pg_tables WHERE schemaname = 'public')) = 0 THEN true ELSE false END AS is_free_space_zero;", connection))
+            {
+                var OffSize = (bool)command.ExecuteScalar();
+                metrics.OffSize = OffSize;
+            }
 
             metrics.currentCpuUsage = new Random().Next(1, 99).ToString();
             return metrics;
