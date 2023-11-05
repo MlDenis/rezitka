@@ -22,7 +22,7 @@ internal class Program
     public static List<string> _connStrings = new List<string>()
     {
         "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
-        "Server=smol;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
+        "Server=smoldb;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
     };
 
     private static async Task Main(string[] args)

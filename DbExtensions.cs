@@ -15,7 +15,7 @@ namespace PostgreSqlMonitoringBot
 
             var response = CreateConnection(_connectionString);
             var connection = response.Connection;
-            connection.Open();
+            //connection.Open();
             var isAvailable = response.isAvailable;
             if (!isAvailable)
             {
