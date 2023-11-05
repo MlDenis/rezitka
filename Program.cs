@@ -11,6 +11,9 @@ using Hangfire;
 using Quartz.Impl;
 using Quartz;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+using PostgreSqlMonitoringBot.Queries;
+using MediatR;
 
 internal class Program
 {
@@ -20,7 +23,7 @@ internal class Program
     public static List<string> _connStrings = new List<string>()
     {
         "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
-        "Server=smoldb;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
+        "Server=smol;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
     };
 
     private static async Task Main(string[] args)
@@ -28,10 +31,8 @@ internal class Program
         IHost host = Host.CreateDefaultBuilder(args)
             .ConfigureServices(async (context, services) =>
             {
+                services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
                 services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_defaultConnectionString));
-
-                var telegramBot = new TelegramBot(_token).StartAsync();
-                services.AddSingleton(telegramBot);
 
                 ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
                 IScheduler scheduler = await schedulerFactory.GetScheduler();
@@ -41,7 +42,11 @@ internal class Program
                 var provider = services.BuildServiceProvider();
                 var dbContext = provider.GetService<AppDbContext>();
                 await dbContext.Database.MigrateAsync();
+                var telegramBot = await new TelegramBot(_token, dbContext).StartAsync();
+                services.AddSingleton(telegramBot);
                 scheduler.Context.Put("dbContext", dbContext);
+                scheduler.Context.Put("bot", telegramBot);
+
                 foreach (var connString in _connStrings)
                 {
                     NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder(connString);
@@ -56,11 +61,26 @@ internal class Program
                         .WithIdentity(hostName + "Trigger", "metrics")
                         .StartNow()
                         .WithSimpleSchedule(x => x
-                            .WithIntervalInSeconds(15)
+                            .WithIntervalInSeconds(30)
                             .RepeatForever())
                         .Build();
 
                     await scheduler.ScheduleJob(job, trigger);
+
+                    //IJobDetail jobChecker = JobBuilder.Create<DatabaseCheckerServiceJob>()
+                    //    .WithIdentity(hostName + "CheckerJob", "CheckerMetrics")
+                    //    .UsingJobData("connString", connString)
+                    //    .Build();
+
+                    //ITrigger triggerChecker = TriggerBuilder.Create()
+                    //    .WithIdentity(hostName + "CheckerTrigger", "CheckerMetrics")
+                    //    .StartNow()
+                    //    .WithSimpleSchedule(x => x
+                    //        .WithIntervalInSeconds(5)
+                    //        .RepeatForever())
+                    //    .Build();
+
+                    //await scheduler.ScheduleJob(job, trigger);
                 }
             })
             .Build();

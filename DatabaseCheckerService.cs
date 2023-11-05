@@ -1,4 +1,8 @@
-﻿using System;
+﻿using MediatR;
+using Npgsql;
+using PostgreSqlMonitoringBot.Queries;
+using Quartz;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,18 +11,22 @@ using System.Threading.Tasks;
 
 namespace PostgreSqlMonitoringBot
 {
-    public class DatabaseCheckerService
+    public class DatabaseCheckerServiceJob : IJob 
     {
-        public string _connectionString;
-        public DatabaseCheckerService(string connectionString)
+        public async Task Execute(IJobExecutionContext context)
         {
-            _connectionString = connectionString;
-        }
+            var connString = context.JobDetail.JobDataMap.GetString("connString");
 
-        public async Task CheckDatabase()
-        {
-            var metrics = DbExtensions.GetMetrics(_connectionString);
-            Console.WriteLine(JsonSerializer.Serialize(metrics));
+            var schedulerContext = context.Scheduler.Context;
+            var mediatr = (IMediator)schedulerContext.Get("mediatr");
+
+            var result = DbExtensions.CreateConnection(connString);
+
+            if(!result.isAvailable)
+            {
+                await mediatr.Publish(new ConnectionToDatabaseFailedQuery(result));
+            }
+            return;
         }
     }
 }

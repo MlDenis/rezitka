@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,13 +10,15 @@ namespace PostgreSqlMonitoringBot
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext() { }
+        public AppDbContext() 
+        {
+        }
 
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
 
-        public DbSet<TelegramUsers> TelegramUsers { get; set; }
+        public DbSet<TelegramUser> TelegramUsers { get; set; }
         public DbSet<Metrica> Metrics { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

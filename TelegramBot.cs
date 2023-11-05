@@ -13,13 +13,13 @@ namespace PostgreSqlMonitoringBot
 {
     public class TelegramBot
     {
+        public string _token { get; set; }
         private readonly AppDbContext _dbContext;
-        public TelegramBot(string token)
+        public TelegramBot(string token, AppDbContext dbContext)
         {
             _token = token; 
+            _dbContext = dbContext;
         }
-
-        public string _token {  get; set; }
 
         public async Task<TelegramBotClient> StartAsync()
         {
@@ -47,10 +47,15 @@ namespace PostgreSqlMonitoringBot
             if (update.Type == Telegram.Bot.Types.Enums.UpdateType.Message)
             {
                 var message = update.Message;
-
                 if (message.Text.ToLower() == "/start")
                 {
                     await botClient.SendTextMessageAsync(message.Chat, "Сервис мониторинга Rezetka готов к работе");
+
+                    var telegramUser = new TelegramUser();
+                    telegramUser.Name = message.Chat.Username;
+                    telegramUser.ChatId = message.Chat.Id.ToString();
+                    _dbContext.TelegramUsers.Add(telegramUser);
+                    await _dbContext.SaveChangesAsync();
 
                     return;
                 }
@@ -58,6 +63,10 @@ namespace PostgreSqlMonitoringBot
                 {
                     var lastMetrics = _dbContext.Metrics.LastOrDefaultAsync();
                     await botClient.SendTextMessageAsync(message.Chat, JsonSerializer.Serialize(lastMetrics));
+                }
+                else
+                {
+                    await botClient.SendTextMessageAsync(message.Chat, "Я пока не придумал, что на это ответить ):");
                 }
             }
         }

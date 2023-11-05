@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace PostgreSqlMonitoringBot
 {
-    public class TelegramUsers
+    public class TelegramUser
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity), Key]
         public Guid Id { get; set; }
