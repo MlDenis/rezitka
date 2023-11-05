@@ -16,13 +16,13 @@ using MediatR;
 
 internal class Program
 {
-    public static string _defaultConnectionString = "Server=localhost;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
+    public static string _defaultConnectionString = "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;";
     public static string _token = "6684432976:AAHHpDpa8cCnAc-zmytoWcNVEmSHymJyYTA";
     public static AppDbContext dbContext;
 
     public static List<string> _connStrings = new List<string>()
     {
-        "Server=localhost;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
+        "Server=db;Port=5432;Database=TestDb;Username=postgres;Password=Qwerty123;",
         //"Server=smoldb;Port=5433;Database=TestDb;Username=postgres;Password=Qwerty123;"
     };
 
